@@ -315,7 +315,7 @@ KNOWN_COORDS = {
     "Jawahar Nagar":            (19.1652, 72.8518),
     "Aarey Milk Colony":        (19.1561, 72.8707),   # verified OSM 19.15613, 72.87072
     "Motilal Nagar":            (19.1632, 72.8512),   # Goregaon West
-    "Bangur Nagar":             (19.1625, 72.8014),   # Goregaon West, New Link Rd (verified 19.16251, 72.80132)
+    "Bangur Nagar":             (19.1673, 72.8322),   # Goregaon West, New Link Rd (verified 19.16251, 72.80132)
     "Gokuldham":                (19.1622, 72.8502),   # Goregaon East
     "Jayprakash Nagar":         (19.1658, 72.8520),
     "Pandurang Wadi":           (19.1678, 72.8528),
