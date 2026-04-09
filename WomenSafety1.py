@@ -1184,16 +1184,7 @@ with st.sidebar:
             st.success(f"✅ Incident saved for **{report_locality}**.")
         st.rerun()
  
-    st.markdown("---")
-    st.markdown('<div class="section-hdr">Upload New Data (CSV)</div>', unsafe_allow_html=True)
-    uploaded = st.file_uploader("Upload CSV", type=["csv"], label_visibility="collapsed")
-    if uploaded:
-        try:
-            new_df = pd.read_csv(uploaded)
-            insert_from_df(new_df)
-            st.success(f"✅ {len(new_df)} rows added!")
-        except Exception as e:
-            st.error(f"Error: {e}")
+
  
 # ─────────────────────────────────────────────
 # FILTER DATA
