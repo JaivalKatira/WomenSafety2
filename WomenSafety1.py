@@ -823,7 +823,6 @@ def init_db():
             lat REAL, lon REAL, updated_at TEXT
         )
     """)
-    # Incidents table — simple, just saves to DB, no WhatsApp
     c.execute("""
         CREATE TABLE IF NOT EXISTS incidents (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -894,22 +893,15 @@ def insert_from_df(df_new):
     conn.close()
  
 def report_incident(locality: str, incident_type: str = "general"):
-    """
-    FIX 1: Save incident to DB only. No WhatsApp logic.
-    Updates risk_index + crimes_women in localities table.
-    Also inserts a row into incidents table for audit trail.
-    """
     conn = sqlite3.connect(DB_PATH)
     now = datetime.now().isoformat()
     risk_bump = 2.0 if incident_type == "severe" else 1.0
-    # Bump the locality stats
     conn.execute("""
         UPDATE localities
         SET risk_index = risk_index + ?, crimes_women = crimes_women + 1,
             total_crimes = total_crimes + 1, updated_at = ?
         WHERE locality = ?
     """, (risk_bump, now, locality))
-    # Save the incident record
     conn.execute("""
         INSERT INTO incidents (locality, severity, reported_at)
         VALUES (?, ?, ?)
@@ -928,8 +920,6 @@ def classify(risk):
  
 # ─────────────────────────────────────────────
 # MAP BUILDER
-# FIX 3: Police station markers are blue dots (not shield icons)
-# FIX 2 & 3: Always zoom into user location whether manual or GPS
 # ─────────────────────────────────────────────
 def build_map(df, show_high, show_med, show_low,
               selected_locality=None, user_lat=None, user_lon=None,
@@ -938,7 +928,6 @@ def build_map(df, show_high, show_med, show_low,
     fit_bounds = None
  
     if emergency_stations is not None and user_lat and user_lon:
-        # Fit to show user + all 3 nearest stations
         all_lats = [user_lat] + list(emergency_stations["lat"])
         all_lons = [user_lon] + list(emergency_stations["lon"])
         pad = 0.012
@@ -955,7 +944,6 @@ def build_map(df, show_high, show_med, show_low,
             focus_lon = float(row.iloc[0]["lon"])
             zoom = 15
     elif user_lat and user_lon:
-        # FIX 2: Always zoom into user location (manual or GPS)
         focus_lat, focus_lon = user_lat, user_lon
         zoom = 15
  
@@ -1015,13 +1003,12 @@ def build_map(df, show_high, show_med, show_low,
             color="#00bfff", fill=False, weight=1, opacity=0.2,
         ).add_to(m)
  
-    # FIX 3: Police station markers — solid blue dots (clearly visible, easy to navigate to)
+    # Police station markers — solid blue dots
     if emergency_stations is not None:
-        station_colors = ["#1565c0", "#1976d2", "#42a5f5"]  # shades of blue
+        station_colors = ["#1565c0", "#1976d2", "#42a5f5"]
         rank_labels = ["#1 Nearest", "#2 Nearest", "#3 Nearest"]
         for idx, (_, srow) in enumerate(emergency_stations.iterrows()):
             color = station_colors[idx] if idx < len(station_colors) else "#1565c0"
-            # Outer ring to make it pop
             folium.CircleMarker(
                 location=[srow["lat"], srow["lon"]],
                 radius=18,
@@ -1032,7 +1019,6 @@ def build_map(df, show_high, show_med, show_low,
                 weight=2,
                 opacity=0.6,
             ).add_to(m)
-            # Main solid blue dot
             folium.CircleMarker(
                 location=[srow["lat"], srow["lon"]],
                 radius=10,
@@ -1051,7 +1037,6 @@ def build_map(df, show_high, show_med, show_low,
                 ),
                 tooltip=f"🚔 {rank_labels[idx]}: {srow['name']} ({srow['distance_km']:.2f} km)",
             ).add_to(m)
-            # Dashed line from user to station
             if user_lat and user_lon:
                 folium.PolyLine(
                     locations=[[user_lat, user_lon], [srow["lat"], srow["lon"]]],
@@ -1079,18 +1064,6 @@ if count == 0:
 POLICE_DF = load_police_stations("police_stations.csv")
  
 # ─────────────────────────────────────────────
-# CAPTURE URL PARAMS (geolocation from JS)
-# ─────────────────────────────────────────────
-try:
-    qp = st.query_params
-    if "user_lat" in qp and "user_lon" in qp:
-        st.session_state.user_lat = float(qp["user_lat"])
-        st.session_state.user_lon = float(qp["user_lon"])
-        st.query_params.clear()
-except Exception:
-    pass
- 
-# ─────────────────────────────────────────────
 # HEADER
 # ─────────────────────────────────────────────
 title_col, toggle_col = st.columns([5, 1])
@@ -1102,61 +1075,6 @@ with toggle_col:
     if st.button(TOGGLE_LABEL, use_container_width=True):
         st.session_state.dark_mode = not st.session_state.dark_mode
         st.rerun()
- 
-# ─────────────────────────────────────────────
-# GEOLOCATION JS COMPONENT
-# ─────────────────────────────────────────────
-geo_html = f"""
-<div id="geo-container" style="margin:6px 0;">
-  <button id="geo-btn"
-    onclick="getLocation()"
-    style="
-      background: linear-gradient(135deg,#1a73e8,#0d47a1);
-      color:white; border:none; border-radius:8px;
-      padding:9px 18px; font-size:0.88rem; font-weight:600;
-      cursor:pointer; width:100%; font-family:inherit;
-    ">
-    📍 Use My GPS Location
-  </button>
-  <div id="geo-status" style="font-size:0.76rem;margin-top:5px;color:#7a8899;min-height:18px;"></div>
-</div>
-<script>
-function getLocation() {{
-  var btn = document.getElementById('geo-btn');
-  var status = document.getElementById('geo-status');
-  btn.textContent = "⏳ Getting GPS location…";
-  btn.disabled = true;
-  status.textContent = "";
- 
-  if (!navigator.geolocation) {{
-    status.textContent = "❌ Geolocation not supported.";
-    btn.textContent = "📍 Use My GPS Location";
-    btn.disabled = false;
-    return;
-  }}
- 
-  navigator.geolocation.getCurrentPosition(
-    function(pos) {{
-      var lat = pos.coords.latitude.toFixed(6);
-      var lon = pos.coords.longitude.toFixed(6);
-      status.innerHTML = "✅ Got location: " + lat + ", " + lon + "<br><small>Reloading app…</small>";
-      btn.textContent = "✅ Location found!";
-      var url = new URL(window.location.href);
-      url.searchParams.set("user_lat", lat);
-      url.searchParams.set("user_lon", lon);
-      window.location.href = url.toString();
-    }},
-    function(err) {{
-      var msgs = {{1:"Permission denied — please allow location access in browser",2:"Position unavailable",3:"Timeout — try again"}};
-      status.textContent = "⚠️ " + (msgs[err.code] || "Error. Use area search below.");
-      btn.textContent = "📍 Use My GPS Location";
-      btn.disabled = false;
-    }},
-    {{enableHighAccuracy: true, timeout: 15000, maximumAge: 0}}
-  );
-}}
-</script>
-"""
  
 # ─────────────────────────────────────────────
 # SIDEBAR
@@ -1184,12 +1102,9 @@ with st.sidebar:
             '<span class="loc-badge loc-inactive">⚫ No location set</span>',
             unsafe_allow_html=True,
         )
- 
-    # GPS button
-    st.components.v1.html(geo_html, height=90)
- 
-    # FIX 2: Area search — type a locality name to set location
-    st.caption("Or search by area name:")
+
+    # Area search — type a locality name to set location
+    st.caption("Search by area name:")
     area_input = st.selectbox(
         "Search area",
         options=[""] + ALL_MUMBAI_AREAS,
@@ -1239,7 +1154,7 @@ with st.sidebar:
  
     st.markdown("---")
  
-    # ── Map Filters — FIX 4: Removed Risk Threshold & Pop. Density sliders ──
+    # ── Map Filters ──────────────────────────
     st.markdown('<div class="section-hdr">Layer Visibility</div>', unsafe_allow_html=True)
     show_high = st.checkbox("🔴 High Risk Zones", value=True)
     show_med  = st.checkbox("🟡 Medium Risk Zones", value=True)
@@ -1250,7 +1165,7 @@ with st.sidebar:
     locality_list = ["— All —"] + sorted(df_all["locality"].unique().tolist())
     selected_loc = st.selectbox("Select locality", locality_list, label_visibility="collapsed")
  
-    # ── Incident Reporting — FIX 1: DB only, no WhatsApp ───────────────────
+    # ── Incident Reporting ───────────────────
     st.markdown("---")
     st.markdown('<div class="section-hdr">📣 Report Incident</div>', unsafe_allow_html=True)
     report_locality = st.selectbox(
@@ -1280,13 +1195,8 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Error: {e}")
  
-    st.markdown("---")
-    if st.button("🔄 Reload from original CSV"):
-        load_csv_to_db("data.csv")
-        st.success("Database reloaded!")
- 
 # ─────────────────────────────────────────────
-# FILTER DATA — FIX 4: No risk/density range filtering, show all
+# FILTER DATA
 # ─────────────────────────────────────────────
 df_all = fetch_all()
 df_filtered = df_all.copy()
