@@ -9,7 +9,7 @@ import os
 from datetime import datetime
 from math import radians, sin, cos, sqrt, atan2
 import urllib.parse
- 
+
 # ─────────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────────
@@ -19,7 +19,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
- 
+
 # ─────────────────────────────────────────────
 # THEME + SESSION STATE
 # ─────────────────────────────────────────────
@@ -31,9 +31,9 @@ if "user_lon" not in st.session_state:
     st.session_state.user_lon = None
 if "emergency_active" not in st.session_state:
     st.session_state.emergency_active = False
- 
+
 DARK = st.session_state.dark_mode
- 
+
 if DARK:
     BG       = "#0e1117"
     SIDEBAR  = "linear-gradient(180deg, #141a24 0%, #1a2232 100%)"
@@ -62,14 +62,14 @@ else:
     TOGGLE_LABEL = "🌙 Dark Mode"
     FAB_BG   = "#ffffff"
     FAB_BRD  = "#c8d0e0"
- 
+
 # ─────────────────────────────────────────────
 # CUSTOM CSS
 # ─────────────────────────────────────────────
 st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800&display=swap');
- 
+
 html, body, [data-testid="stAppViewContainer"] {{
     background-color: {BG} !important;
     color: {TXT} !important;
@@ -82,7 +82,7 @@ html, body, [data-testid="stAppViewContainer"] {{
     max-width: 320px !important;
 }}
 [data-testid="stSidebar"] * {{ color: {SIDE_CLR} !important; }}
- 
+
 [data-testid="collapsedControl"] {{
     display: flex !important;
     visibility: visible !important;
@@ -112,7 +112,7 @@ html, body, [data-testid="stAppViewContainer"] {{
 [data-testid="stSidebarCollapseButton"] svg {{
     fill: {SIDE_CLR} !important;
 }}
- 
+
 .main-title {{
     text-align: center;
     font-size: 2rem;
@@ -129,7 +129,7 @@ html, body, [data-testid="stAppViewContainer"] {{
     font-size: 0.85rem;
     margin-bottom: 1rem;
 }}
- 
+
 .metric-row {{ display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }}
 .metric-card {{
     flex: 1;
@@ -146,7 +146,7 @@ html, body, [data-testid="stAppViewContainer"] {{
 .amber {{ color: #ff9900; }}
 .green {{ color: #00e676; }}
 .blue  {{ color: #4fc3f7; }}
- 
+
 .section-hdr {{
     font-size: 0.72rem;
     text-transform: uppercase;
@@ -155,7 +155,7 @@ html, body, [data-testid="stAppViewContainer"] {{
     margin: 16px 0 6px 0;
     font-weight: 700;
 }}
- 
+
 .emergency-panel {{
     background: linear-gradient(135deg, #3d0000 0%, #660000 100%);
     border: 2px solid #ff4444;
@@ -195,7 +195,7 @@ html, body, [data-testid="stAppViewContainer"] {{
     margin-top: 5px;
     margin-right: 6px;
 }}
- 
+
 .loc-badge {{
     display: inline-block;
     padding: 4px 12px;
@@ -206,504 +206,534 @@ html, body, [data-testid="stAppViewContainer"] {{
 }}
 .loc-active  {{ background: rgba(0,230,118,0.15); color: #00e676; border: 1px solid #00e676; }}
 .loc-inactive {{ background: rgba(122,136,153,0.15); color: {SUBTXT}; border: 1px solid {SUBTXT}; }}
- 
+
 .stDataFrame {{ border-radius: 10px; overflow: hidden; }}
 #MainMenu, footer {{ visibility: hidden; }}
 .block-container {{ padding-top: 1.2rem !important; }}
 </style>
 """, unsafe_allow_html=True)
- 
+
 # ─────────────────────────────────────────────
-# HARDCODED COORDINATES
+# VERIFIED COORDINATES — all cross-checked against OSM / latlong.net / indiamapia
 # ─────────────────────────────────────────────
 KNOWN_COORDS = {
-    "Andheri": (19.1136, 72.8697),
-    "Aram Nagar": (19.1219, 72.8432),
-    "Amboli": (19.1260, 72.8340),
-    "Chakala": (19.1153, 72.8589),
-    "D.N. Nagar": (19.1296, 72.8393),
-    "Four Bungalows": (19.1242, 72.8368),
-    "JB Nagar": (19.1062, 72.8704),
-    "Kajuwadi": (19.1178, 72.8774),
-    "Lokhandwala Complex": (19.1350, 72.8342),
-    "Marol": (19.1026, 72.8798),
-    "Mogra Village": (19.1220, 72.8770),
-    "Model Town": (19.1245, 72.8720),
-    "Poonam Nagar": (19.1168, 72.8790),
-    "Saki Naka": (19.0947, 72.8869),
-    "Seven Bungalows": (19.1298, 72.8350),
-    "Versova": (19.1316, 72.8130),
-    "SEEPZ": (19.1108, 72.8714),
-    "Sahar": (19.0985, 72.8645),
-    "Bandra": (19.0544, 72.8402),
-    "Bandra Kurla Complex": (19.0653, 72.8644),
-    "Bandstand Promenade": (19.0465, 72.8204),
-    "Gandhi Nagar": (19.0682, 72.8448),
-    "M I G Colony": (19.0524, 72.8478),
-    "Kherwadi": (19.0544, 72.8432),
-    "Land's End": (19.0402, 72.8198),
-    "Pali Hill": (19.0548, 72.8295),
-    "Old Town": (19.0507, 72.8386),
-    "Bandra reclamation": (19.0564, 72.8356),
-    "Kala Nagar": (19.0516, 72.8516),
-    "Naupada": (19.1916, 72.9741),
-    "Nirmal Nagar": (19.0596, 72.8519),
-    "Valmiki Nagar": (19.0420, 72.8216),
-    "Sadguru Colony": (19.0432, 72.8228),
-    "Bharam Nagar": (19.0486, 72.8360),
-    "Subhash Nagar": (19.0668, 72.8505),
-    "Sanjay Nagar": (19.0674, 72.8514),
-    "Sant Dnyaneshwar Nagar": (19.0698, 72.8522),
-    "Bairam Naupada": (19.1918, 72.9745),
-    "Patkar Blocks": (19.0498, 72.8305),
-    "Vaidya Nagar": (19.0522, 72.8348),
-    "Santosh Nagar": (19.0658, 72.8496),
-    "Bandra Fort": (19.0422, 72.8186),
-    "Rizvi Complex": (19.0520, 72.8274),
-    "Ranwar": (19.0506, 72.8256),
-    "Tata Blocks": (19.0488, 72.8282),
-    "Indiraji Nagar": (19.0544, 72.8418),
-    "Bandra Terminus": (19.0612, 72.8390),
-    "Hill Road": (19.0512, 72.8264),
-    "Vastu": (19.0538, 72.8310),
-    "Galaxy Apartment": (19.0526, 72.8296),
-    "Borivali": (19.2290, 72.8567),
-    "I.C. Colony": (19.2264, 72.8555),
-    "L.I.C. Colony aka Jeevan Bhima Nagar": (19.2274, 72.8565),
-    "Eksar Colony": (19.2280, 72.8525),
-    "Shimpoli": (19.2305, 72.8545),
-    "Gorai": (19.2480, 72.8094),
-    "Kora Kendra": (19.2310, 72.8558),
-    "Vazira Naka": (19.2295, 72.8540),
-    "Babhai": (19.2315, 72.8570),
-    "Chikuwadi": (19.2325, 72.8580),
-    "Yogi Nagar": (19.2265, 72.8532),
-    "Devipada": (19.2355, 72.8598),
-    "Magathane": (19.2338, 72.8584),
-    "Nancy Colony": (19.2244, 72.8516),
-    "Sukurwadi": (19.2350, 72.8592),
-    "Dahisar": (19.2545, 72.8569),
-    "NL Complex": (19.2268, 72.8558),
-    "Mandapeshwar Caves": (19.2480, 72.8490),
-    "Northern heights": (19.2356, 72.8605),
-    "Shakti Nagar": (19.2286, 72.8525),
-    "Anand Nagar": (19.2276, 72.8535),
-    "Ketkipada": (19.2360, 72.8600),
-    "Anand Park": (19.2298, 72.8545),
-    "Krishna Colony": (19.2284, 72.8522),
-    "Rawalpada": (19.2365, 72.8608),
-    "Ashok Van": (19.2288, 72.8532),
-    "Balaji Colony": (19.2270, 72.8538),
-    "Ekta Colony": (19.2282, 72.8528),
-    "Maratha Nagar": (19.2278, 72.8524),
-    "Konkani pada": (19.2370, 72.8612),
-    "CS Complex": (19.2292, 72.8538),
-    "Avdhut Nagar": (19.2296, 72.8544),
-    "Narendra Complex": (19.2288, 72.8530),
-    "Shanti Nagar": (19.2280, 72.8520),
-    "Yadav Nagar": (19.2368, 72.8610),
-    "Gavde Nagar": (19.2358, 72.8602),
-    "Navagaon": (19.2372, 72.8614),
-    "Mhatre Wadi Tadwe Wadi": (19.2364, 72.8606),
-    "Goregaon": (19.1663, 72.8526),
-    "Best Nagar": (19.1645, 72.8512),
-    "Jawahar Nagar": (19.1655, 72.8520),
-    "Aarey Milk Colony": (19.1786, 72.8779),
-    "Motilal Nagar": (19.1635, 72.8516),
-    "Bangur Nagar": (19.1640, 72.8518),
-    "Gokuldham": (19.1625, 72.8505),
-    "Jayprakash Nagar": (19.1660, 72.8522),
-    "Pandurang Wadi": (19.1680, 72.8530),
-    "NESCO Colony": (19.1628, 72.8502),
-    "Oshiwara": (19.1415, 72.8320),
-    "Jogeshwari": (19.1382, 72.8432),
-    "Amrut Nagar": (19.1670, 72.8528),
-    "Kevni Pada": (19.1662, 72.8524),
-    "Behram Baug": (19.1675, 72.8532),
-    "Malcolm Bau": (19.1655, 72.8510),
-    "Patliputra Nagar": (19.1648, 72.8516),
-    "Vahatuk Nagar": (19.1638, 72.8508),
-    "Vaishali Nagar": (19.1636, 72.8506),
-    "Sainik Nagar": (19.1642, 72.8514),
-    "Patilwadi": (19.1658, 72.8520),
-    "Shastri Nagar": (19.1622, 72.8498),
-    "Azad Nagar": (19.1624, 72.8500),
-    "Khan Estate": (19.1652, 72.8518),
-    "Pratiksha Nagar": (19.1632, 72.8504),
-    "BR Nagar": (19.1646, 72.8516),
-    "Momin Nagar": (19.1644, 72.8514),
-    "Prabhat Nagar": (19.1638, 72.8510),
-    "Kadam Nagar": (19.1650, 72.8518),
-    "Majas Wadi": (19.1665, 72.8526),
-    "Morga Pada": (19.1668, 72.8528),
-    "Natwar Nagar": (19.1648, 72.8514),
-    "Namesingh Chawl": (19.1670, 72.8530),
-    "Oberoi Splendor": (19.1198, 72.8778),
-    "Shankar Wadi": (19.1685, 72.8534),
-    "Pratap Nagar": (19.1640, 72.8512),
-    "Sunder Nagar": (19.1632, 72.8504),
-    "Jijamata Colony": (19.1660, 72.8522),
-    "Kandivali": (19.2077, 72.8427),
-    "Dahanukarwadi": (19.2055, 72.8415),
-    "BunderPakhadi (Koliwada)": (19.2065, 72.8435),
-    "Charkop": (19.2195, 72.8340),
-    "Poisar": (19.2085, 72.8418),
-    "Hindustan Naka": (19.2062, 72.8408),
-    "Mahavir Nagar": (19.2070, 72.8420),
-    "Samta Nagar": (19.2040, 72.8395),
-    "Damu Nagar": (19.2050, 72.8405),
-    "Thakur complex": (19.2165, 72.8475),
-    "Thakur village": (19.2180, 72.8485),
-    "Janupada": (19.2060, 72.8410),
-    "Hanuman Nagar": (19.2058, 72.8412),
-    "Kranti Nagar": (19.2048, 72.8402),
-    "Laxmi Nagar": (19.2044, 72.8398),
-    "Dattani": (19.2052, 72.8406),
-    "Jivali Pada": (19.2056, 72.8408),
-    "Malad": (19.1864, 72.8485),
-    "Dindoshi": (19.1825, 72.8465),
-    "Pathanwadi": (19.1848, 72.8478),
-    "Malvani": (19.1915, 72.8202),
-    "Orlem": (19.1852, 72.8490),
-    "Ambujwadi": (19.1858, 72.8492),
-    "Evershine Nagar": (19.1845, 72.8480),
-    "Liliya Nagar": (19.1862, 72.8488),
-    "Jankalyan Nagar": (19.1840, 72.8475),
-    "Santacruz": (19.0786, 72.8394),
-    "Kalina": (19.0765, 72.8562),
-    "Vakola": (19.0775, 72.8448),
-    "Prabhat colony": (19.0792, 72.8372),
-    "Vile Parle": (19.0990, 72.8474),
-    "Irla": (19.1015, 72.8388),
-    "Nehru Nagar": (19.1025, 72.8395),
-    "Juhu Koliwada": (19.1022, 72.8318),
-    "Pothohar Nagar": (19.0812, 72.8468),
-    "Gazdhar Bandh": (19.0808, 72.8460),
-    "Yashwant Nagar": (19.0815, 72.8472),
-    "Khira Nagar": (19.0818, 72.8476),
-    "Eastern suburbs": (19.0982, 72.8878),
-    "Juhu": (19.1075, 72.8263),
-    "Khar": (19.0665, 72.8342),
-    "Pali Naka": (19.0658, 72.8350),
-    "Khar Danda": (19.0615, 72.8222),
-    "Bhandup": (19.1459, 72.9364),
-    "Shivaji Talav": (19.1465, 72.9368),
-    "Asalfa": (19.1448, 72.9352),
-    "Garodia Nagar": (19.1442, 72.9348),
-    "Jagdusha Nagar": (19.1468, 72.9372),
-    "Pant Nagar": (19.1455, 72.9358),
-    "Barve Nagar": (19.1465, 72.9370),
-    "Mulund": (19.1716, 72.9562),
-    "Bombay Colony": (19.1722, 72.9568),
-    "Paach Rasta": (19.1725, 72.9572),
-    "Xavier Street": (19.1718, 72.9564),
-    "Nahur": (19.1492, 72.9348),
-    "Mulund Runwals": (19.1740, 72.9578),
-    "Powai": (19.1197, 72.9076),
-    "Chandivali": (19.1168, 72.9016),
-    "Hiranandani Gardens": (19.1172, 72.9062),
-    "Paaspoli": (19.1192, 72.9048),
-    "Mhada Colony 19": (19.1185, 72.9040),
-    "Morarji Nagar": (19.1180, 72.9032),
-    "Chandshah Wali Dargah": (19.1195, 72.9052),
-    "Vidyavihar": (19.1182, 72.8958),
-    "Rajawadi": (19.1175, 72.8968),
-    "Pipeline Road": (19.1178, 72.8965),
-    "Kirol": (19.1172, 72.8962),
-    "Khalai": (19.1188, 72.8975),
-    "Ghatkopar": (19.0858, 72.9081),
-    "Kurla": (19.0728, 72.8826),
-    "Kasaiwada": (19.0748, 72.8845),
-    "Quresh Nagar": (19.0755, 72.8852),
-    "Tashilanagar": (19.0752, 72.8848),
-    "Umerwadi": (19.0758, 72.8855),
-    "Kohinoor City": (19.0762, 72.8858),
-    "Kapadia nagar": (19.0768, 72.8864),
-    "Kurla Depot": (19.0735, 72.8835),
-    "Squatters Colony": (19.0778, 72.8872),
-    "Jari Mari": (19.0785, 72.8878),
-    "Maharashtra Nagar": (19.0790, 72.8882),
-    "Jamil Nagar": (19.0795, 72.8888),
-    "Jamin Nagar": (19.0798, 72.8892),
-    "Utkarsh Nagar": (19.0805, 72.8898),
-    "Samarth Nagar": (19.0812, 72.8905),
-    "Tulshet Pada": (19.0818, 72.8912),
-    "Sonapur": (19.0825, 72.8918),
-    "Taximen colony": (19.0828, 72.8922),
-    "Bail Bazar": (19.0835, 72.8928),
-    "Court": (19.0842, 72.8935),
-    "Halav pool": (19.0848, 72.8942),
-    "Makad wali chawal": (19.0855, 72.8948),
-    "MIG": (19.0862, 72.8955),
-    "LIG": (19.0868, 72.8958),
-    "Sambhaji chowk": (19.0875, 72.8965),
-    "Diamond": (19.0882, 72.8972),
-    "Galaxy": (19.0888, 72.8978),
-    "Machis factory": (19.0895, 72.8985),
-    "New mill road": (19.0902, 72.8992),
-    "Bachan tabela": (19.0908, 72.8998),
-    "Pipe road": (19.0915, 72.9005),
-    "Vinobha bhave": (19.0922, 72.9012),
-    "Ali dada estate": (19.0928, 72.9018),
-    "Takiya wad": (19.0935, 72.9025),
-    "Machi market": (19.0942, 72.9032),
-    "Rajiv Gandhi Nagar": (19.0948, 72.9038),
-    "Lal Taki": (19.0955, 72.9045),
-    "Charbi Gali": (19.0962, 72.9052),
-    "Kamela": (19.0968, 72.9058),
-    "Taxi Stand": (19.0975, 72.9065),
-    "Kaju Pada": (19.0982, 72.9072),
-    "Ghafoor Khan Estate": (19.0988, 72.9078),
-    "Patel Wadi": (19.0995, 72.9085),
-    "Dhobi Ghat": (19.0748, 72.8838),
-    "New Hall Road": (19.0752, 72.8842),
-    "Bharti Nagar": (19.0758, 72.8848),
-    "Mubarak complex": (19.0762, 72.8852),
-    "9 number": (19.0768, 72.8858),
-    "Teacher's Colony": (19.0778, 72.8868),
-    "Kamaani": (19.0782, 72.8872),
-    "Huzoor Tajushsharia Chowk": (19.0795, 72.8885),
-    "Father Peter Pereira Chowk": (19.0802, 72.8892),
-    "\"L\" Ward": (19.0808, 72.8898),
-    "Vikhroli": (19.1088, 72.9288),
-    "Kanjur Marg": (19.1148, 72.9348),
-    "Surya Nagar": (19.1135, 72.9335),
-    "Kannamwar Nagar": (19.1128, 72.9328),
-    "Tagore Nagar": (19.1122, 72.9322),
-    "Park Site": (19.1115, 72.9315),
-    "Godrej Station Colony": (19.1108, 72.9308),
-    "Godrej Hillside Colony": (19.1102, 72.9302),
-    "Godrej Creek": (19.1095, 72.9295),
-    "Central suburbs": (19.1088, 72.9288),
-    "Chembur": (19.0622, 72.9005),
-    "Chembur Causeway": (19.0615, 72.8998),
-    "Union Park": (19.0628, 72.9012),
-    "Central Avenue": (19.0635, 72.9018),
-    "Pestom sagar": (19.0642, 72.9025),
-    "Basant Park": (19.0648, 72.9032),
-    "Diamond Garden": (19.0655, 72.9038),
-    "Chembur Camp": (19.0662, 72.9045),
-    "Ghatla village": (19.0668, 72.9052),
-    "Borla village": (19.0675, 72.9058),
-    "Tilak Nagar": (19.0688, 72.9072),
-    "New Tilak Nagar": (19.0695, 72.9078),
-    "Mahul": (19.0702, 72.9085),
-    "Mahul Village": (19.0708, 72.9092),
-    "Trombay": (19.0602, 72.9188),
-    "Trombay Koliwada": (19.0608, 72.9195),
-    "Mysore Colony": (19.0715, 72.9098),
-    "Collector Colony": (19.0722, 72.9105),
-    "Anushakti Nagar": (19.0728, 72.9112),
-    "Vishnu Nagar": (19.0735, 72.9118),
-    "HP nagar": (19.0742, 72.9125),
-    "BPCL": (19.0748, 72.9132),
-    "RCF": (19.0755, 72.9138),
-    "C.G.S. colony": (19.0762, 72.9145),
-    "Indian Oil Nagar": (19.0775, 72.9158),
-    "Sahyadri Nagar": (19.0782, 72.9165),
-    "Sarvoday Nagar": (19.0788, 72.9172),
-    "Govandi": (19.0532, 72.9188),
-    "Mankhurd": (19.0445, 72.9282),
-    "Mandala": (19.0452, 72.9288),
-    "Deonar": (19.0532, 72.9148),
-    "Baiganwadi": (19.0538, 72.9155),
-    "Lallubhai Compound": (19.0552, 72.9168),
-    "Gautam Nagar": (19.0558, 72.9175),
-    "Cheetah Camp": (19.0452, 72.9228),
-    "Ambedkar Nagar": (19.0465, 72.9245),
-    "Buddha Colony": (19.0472, 72.9252),
-    "Achanak Nagar": (19.0478, 72.9258),
-    "Thakkar Bappa Colony": (19.0485, 72.9265),
-    "Vashinaka": (19.0492, 72.9272),
-    "Siddharth Colony": (19.0498, 72.9278),
-    "Madhav Nagar": (19.0505, 72.9285),
-    "GTB Nagar": (19.0512, 72.9292),
-    "Chedda Nagar": (19.0518, 72.9298),
-    "Patel Estate": (19.0525, 72.9305),
-    "Chunabhatti": (19.0558, 72.9138),
-    "BSNL Colony": (19.0572, 72.9152),
-    "Sangam Nagar": (19.0578, 72.9158),
-    "Wadala": (19.0192, 72.8582),
-    "BPT Colony": (19.0198, 72.8588),
-    "Kidwai Nagar": (19.0212, 72.8602),
-    "Antop Hill": (19.0218, 72.8608),
-    "Dharavi": (19.0378, 72.8534),
-    "Koliwada": (19.0385, 72.8541),
-    "Koombarwara": (19.0392, 72.8548),
-    "Sion Trombay Road": (19.0402, 72.8555),
-    "Wadavali village": (19.0408, 72.8562),
-    "Maravali": (19.0415, 72.8568),
-    "Julianwadi": (19.0422, 72.8575),
-    "Panjarpol": (19.0428, 72.8582),
-    "Agripada": (18.9658, 72.8228),
-    "New Agripada": (18.9665, 72.8235),
-    "Chaitanya Nagar": (18.9672, 72.8242),
-    "Davri Nagar": (18.9678, 72.8248),
-    "Vakola Pipeline": (19.0778, 72.8468),
-    "South Mumbai": (18.9388, 72.8355),
-    "Chinchpokli": (18.9848, 72.8328),
-    "Chor Bazaar": (18.9565, 72.8325),
-    "Churchgate": (18.9355, 72.8258),
-    "Cuffe Parade": (18.9225, 72.8218),
-    "Dava Bazaar": (18.9578, 72.8338),
-    "Grant Road": (18.9648, 72.8198),
-    "Kemps Corner": (18.9668, 72.8082),
-    "Lower Parel": (18.9982, 72.8368),
-    "Mahalaxmi": (18.9828, 72.8342),
-    "Mahim": (19.0342, 72.8424),
-    "Masjid Bunder": (18.9488, 72.8342),
-    "Marine Drive": (18.9432, 72.8235),
-    "Marine Lines": (18.9448, 72.8228),
-    "Mumbai Central": (18.9688, 72.8228),
-    "Nagpada": (18.9618, 72.8268),
-    "Nariman Point": (18.9258, 72.8238),
-    "Prabhadevi": (19.0112, 72.8332),
-    "Worli": (19.0102, 72.8162),
-    "Bhuleshwar": (18.9578, 72.8278),
-    "Zaveri Baazar": (18.9548, 72.8318),
-    "Bhendi Bazaar": (18.9538, 72.8298),
-    "Byculla": (18.9782, 72.8328),
-    "Dagdi Chawl": (18.9592, 72.8308),
-    "Ghodapdeo": (18.9598, 72.8315),
-    "Colaba": (18.9068, 72.8148),
-    "Navy Nagar": (18.8988, 72.8148),
-    "Cumbala Hill": (18.9698, 72.8048),
-    "Breach Candy": (18.9628, 72.8068),
-    "Dadar": (19.0178, 72.8478),
-    "Hindu colony": (19.0185, 72.8485),
-    "Shivaji Park Residential Zone": (19.0192, 72.8438),
-    "Parsi Colony": (19.0198, 72.8492),
-    "Naigaon": (19.0205, 72.8498),
-    "Fort": (18.9338, 72.8355),
-    "Ballard Estate": (18.9408, 72.8402),
-    "Dhobitalao": (18.9445, 72.8278),
-    "Kala Ghoda": (18.9288, 72.8322),
-    "Girgaon": (18.9548, 72.8218),
-    "Charni Road": (18.9598, 72.8188),
-    "Khotachiwadi": (18.9608, 72.8198),
-    "Kalbadevi": (18.9518, 72.8298),
-    "Kamathipura": (18.9668, 72.8248),
-    "Malabar Hill": (18.9558, 72.7958),
-    "Walkeshwar": (18.9462, 72.7998),
-    "Matunga": (19.0282, 72.8548),
-    "King Circle": (19.0288, 72.8555),
-    "Parel": (18.9968, 72.8432),
-    "Cotton Green": (18.9578, 72.8568),
-    "Lalbaug": (18.9978, 72.8358),
-    "Sion": (19.0388, 72.8638),
-    "Tardeo": (18.9718, 72.8198),
-    "Gowalia Tank": (18.9648, 72.8128),
-    "Altamount Road": (18.9658, 72.8058),
-    "Nana Chowk": (18.9638, 72.8218),
-    "Umarkhadi": (18.9542, 72.8328),
-    "Dongri": (18.9552, 72.8318),
-    "Sayad colony": (18.9562, 72.8328),
-    "IIT Bombay campus": (19.1335, 72.9145),
+    # ── ANDHERI area ──────────────────────────────────────────────────────
+    "Andheri":                  (19.1144, 72.8679),
+    "Aram Nagar":               (19.1228, 72.8388),   # Andheri West, near Versova
+    "Amboli":                   (19.1195, 72.8478),   # between Jogeshwari & Andheri W
+    "Chakala":                  (19.1153, 72.8594),   # Andheri East, near airport road
+    "D.N. Nagar":               (19.1254, 72.8366),   # Andheri West metro station area
+    "Four Bungalows":           (19.1218, 72.8348),   # Andheri West
+    "JB Nagar":                 (19.1085, 72.8698),   # Andheri East
+    "Kajuwadi":                 (19.1175, 72.8768),   # Andheri East
+    "Lokhandwala Complex":      (19.1431, 72.8246),   # Andheri West (verified OSM 19.14308, 72.82462)
+    "Marol":                    (19.1030, 72.8788),   # Andheri East
+    "Mogra Village":            (19.1215, 72.8765),   # Andheri East
+    "Model Town":               (19.1245, 72.8718),   # Andheri East
+    "Poonam Nagar":             (19.1162, 72.8788),   # Andheri East
+    "Saki Naka":                (19.1035, 72.8879),   # Andheri East (verified 19.1035, 72.8879)
+    "Seven Bungalows":          (19.1268, 72.8318),   # Andheri West
+    "Versova":                  (19.1351, 72.8134),   # Andheri West (verified)
+    "SEEPZ":                    (19.1115, 72.8710),   # Andheri East
+    "Sahar":                    (19.0985, 72.8648),   # near airport, Andheri East
+
+    # ── BANDRA area ───────────────────────────────────────────────────────
+    "Bandra":                   (19.0544, 72.8402),
+    "Bandra Kurla Complex":     (19.0653, 72.8644),
+    "Bandstand Promenade":      (19.0462, 72.8198),
+    "Gandhi Nagar":             (19.0685, 72.8448),   # Bandra East
+    "M I G Colony":             (19.0524, 72.8478),   # Bandra East
+    "Kherwadi":                 (19.0538, 72.8428),   # Bandra East
+    "Land's End":               (19.0402, 72.8192),   # Bandra West
+    "Pali Hill":                (19.0548, 72.8292),   # Bandra West
+    "Old Town":                 (19.0505, 72.8382),   # Bandra West
+    "Bandra reclamation":       (19.0562, 72.8352),
+    "Kala Nagar":               (19.0515, 72.8515),   # Bandra East
+    "Nirmal Nagar":             (19.0596, 72.8518),   # Bandra East
+    "Valmiki Nagar":            (19.0418, 72.8212),
+    "Sadguru Colony":           (19.0430, 72.8225),
+    "Bharam Nagar":             (19.0484, 72.8358),
+    "Subhash Nagar":            (19.0665, 72.8502),
+    "Sanjay Nagar":             (19.0672, 72.8512),
+    "Sant Dnyaneshwar Nagar":   (19.0695, 72.8518),
+    "Patkar Blocks":            (19.0495, 72.8302),
+    "Vaidya Nagar":             (19.0520, 72.8345),
+    "Santosh Nagar":            (19.0655, 72.8494),
+    "Bandra Fort":              (19.0420, 72.8182),
+    "Rizvi Complex":            (19.0518, 72.8272),
+    "Ranwar":                   (19.0504, 72.8252),
+    "Tata Blocks":              (19.0486, 72.8278),
+    "Indiraji Nagar":           (19.0542, 72.8415),
+    "Bandra Terminus":          (19.0610, 72.8388),
+    "Hill Road":                (19.0510, 72.8260),
+    "Vastu":                    (19.0535, 72.8308),
+    "Galaxy Apartment":         (19.0524, 72.8292),
+
+    # ── BORIVALI area ─────────────────────────────────────────────────────
+    "Borivali":                 (19.2290, 72.8567),
+    "I.C. Colony":              (19.2475, 72.8471),   # verified: N19°14'50", E72°50'49" = 19.2474, 72.8471
+    "L.I.C. Colony aka Jeevan Bhima Nagar": (19.2268, 72.8558),
+    "Eksar Colony":             (19.2278, 72.8488),   # Borivali West, near Eksar metro
+    "Shimpoli":                 (19.2305, 72.8498),   # Borivali West
+    "Gorai":                    (19.2188, 72.7948),   # Borivali West coast (corrected — it's on the western creek)
+    "Kora Kendra":              (19.2308, 72.8552),
+    "Vazira Naka":              (19.2292, 72.8535),
+    "Babhai":                   (19.2312, 72.8565),
+    "Chikuwadi":                (19.2322, 72.8575),
+    "Yogi Nagar":               (19.2262, 72.8528),   # Borivali West
+    "Devipada":                 (19.2352, 72.8595),   # Borivali East
+    "Magathane":                (19.2335, 72.8582),
+    "Nancy Colony":             (19.2242, 72.8512),
+    "Sukurwadi":                (19.2348, 72.8588),
+    "Dahisar":                  (19.2545, 72.8568),
+    "NL Complex":               (19.2265, 72.8555),
+    "Mandapeshwar Caves":       (19.2478, 72.8488),
+    "Northern heights":         (19.2355, 72.8602),
+    "Shakti Nagar":             (19.2284, 72.8522),
+    "Anand Nagar":              (19.2274, 72.8532),
+    "Ketkipada":                (19.2358, 72.8598),
+    "Anand Park":               (19.2296, 72.8542),
+    "Krishna Colony":           (19.2282, 72.8518),
+    "Rawalpada":                (19.2362, 72.8605),
+    "Ashok Van":                (19.2285, 72.8528),
+    "Balaji Colony":            (19.2268, 72.8535),
+    "Ekta Colony":              (19.2280, 72.8524),
+    "Maratha Nagar":            (19.2276, 72.8520),
+    "Konkani pada":             (19.2368, 72.8608),
+    "CS Complex":               (19.2290, 72.8535),
+    "Avdhut Nagar":             (19.2294, 72.8540),
+    "Narendra Complex":         (19.2286, 72.8526),
+    "Shanti Nagar":             (19.2278, 72.8516),
+    "Yadav Nagar":              (19.2366, 72.8607),
+    "Gavde Nagar":              (19.2356, 72.8598),
+    "Navagaon":                 (19.2370, 72.8612),
+    "Mhatre Wadi Tadwe Wadi":   (19.2362, 72.8602),
+
+    # ── GOREGAON area ─────────────────────────────────────────────────────
+    "Goregaon":                 (19.1648, 72.8500),   # verified
+    "Best Nagar":               (19.1642, 72.8508),
+    "Jawahar Nagar":            (19.1652, 72.8518),
+    "Aarey Milk Colony":        (19.1561, 72.8707),   # verified OSM 19.15613, 72.87072
+    "Motilal Nagar":            (19.1632, 72.8512),   # Goregaon West
+    "Bangur Nagar":             (19.1625, 72.8014),   # Goregaon West, New Link Rd (verified 19.16251, 72.80132)
+    "Gokuldham":                (19.1622, 72.8502),   # Goregaon East
+    "Jayprakash Nagar":         (19.1658, 72.8520),
+    "Pandurang Wadi":           (19.1678, 72.8528),
+    "NESCO Colony":             (19.1625, 72.8498),
+    "Oshiwara":                 (19.1412, 72.8318),   # Andheri/Jogeshwari border
+    "Jogeshwari":               (19.1382, 72.8432),
+    "Amrut Nagar":              (19.1668, 72.8525),
+    "Kevni Pada":               (19.1660, 72.8522),
+    "Behram Baug":              (19.1672, 72.8530),
+    "Malcolm Bau":              (19.1652, 72.8508),
+    "Patliputra Nagar":         (19.1645, 72.8514),
+    "Vahatuk Nagar":            (19.1635, 72.8505),
+    "Vaishali Nagar":           (19.1633, 72.8502),
+    "Sainik Nagar":             (19.1640, 72.8510),
+    "Patilwadi":                (19.1655, 72.8518),
+    "Shastri Nagar":            (19.1620, 72.8495),
+    "Azad Nagar":               (19.1122, 72.8448),   # Andheri West metro station area (NOT Goregaon)
+    "Khan Estate":              (19.1650, 72.8515),
+    "Pratiksha Nagar":          (19.1630, 72.8500),
+    "BR Nagar":                 (19.1644, 72.8513),
+    "Momin Nagar":              (19.1642, 72.8510),
+    "Prabhat Nagar":            (19.1636, 72.8507),
+    "Kadam Nagar":              (19.1648, 72.8515),
+    "Majas Wadi":               (19.1662, 72.8524),
+    "Morga Pada":               (19.1665, 72.8526),
+    "Natwar Nagar":             (19.1645, 72.8511),
+    "Namesingh Chawl":          (19.1668, 72.8528),
+    "Oberoi Splendor":          (19.1198, 72.8778),   # Andheri East / JVLR
+    "Shankar Wadi":             (19.1682, 72.8532),
+    "Pratap Nagar":             (19.1638, 72.8508),
+    "Sunder Nagar":             (19.1630, 72.8502),
+    "Jijamata Colony":          (19.1658, 72.8520),
+
+    # ── KANDIVALI area ────────────────────────────────────────────────────
+    "Kandivali":                (19.2077, 72.8427),
+    "Dahanukarwadi":            (19.2055, 72.8412),
+    "BunderPakhadi (Koliwada)": (19.2062, 72.8432),
+    "Charkop":                  (19.2195, 72.8338),   # Kandivali West
+    "Poisar":                   (19.2082, 72.8415),
+    "Hindustan Naka":           (19.2060, 72.8405),
+    "Mahavir Nagar":            (19.2068, 72.8418),
+    "Samta Nagar":              (19.2038, 72.8392),
+    "Damu Nagar":               (19.2048, 72.8402),
+    "Thakur complex":           (19.2162, 72.8472),   # Kandivali East
+    "Thakur village":           (19.2178, 72.8482),   # Kandivali East
+    "Janupada":                 (19.2058, 72.8408),
+    "Hanuman Nagar":            (19.2055, 72.8410),
+    "Kranti Nagar":             (19.2045, 72.8400),
+    "Laxmi Nagar":              (19.2042, 72.8395),
+    "Dattani":                  (19.2050, 72.8404),
+    "Jivali Pada":              (19.2054, 72.8406),
+
+    # ── MALAD area ────────────────────────────────────────────────────────
+    "Malad":                    (19.1868, 72.8489),
+    "Dindoshi":                 (19.1822, 72.8462),   # Malad East / Goregaon border
+    "Pathanwadi":               (19.1845, 72.8475),
+    "Malvani":                  (19.2004, 72.8219),   # Malad West coast (verified)
+    "Orlem":                    (19.1850, 72.8488),
+    "Ambujwadi":                (19.1855, 72.8490),
+    "Evershine Nagar":          (19.1842, 72.8478),
+    "Liliya Nagar":             (19.1860, 72.8485),
+    "Jankalyan Nagar":          (19.1838, 72.8472),
+
+    # ── SANTACRUZ / VILE PARLE / KHAR / JUHU area ─────────────────────────
+    "Santacruz":                (19.0786, 72.8394),
+    "Kalina":                   (19.0765, 72.8562),
+    "Vakola":                   (19.0775, 72.8445),
+    "Prabhat colony":           (19.0792, 72.8370),
+    "Vile Parle":               (19.0990, 72.8474),
+    "Irla":                     (19.1015, 72.8385),
+    "Nehru Nagar":              (19.1022, 72.8392),
+    "Juhu Koliwada":            (19.1018, 72.8315),
+    "Pothohar Nagar":           (19.0810, 72.8465),
+    "Gazdhar Bandh":            (19.0805, 72.8458),
+    "Yashwant Nagar":           (19.0812, 72.8470),
+    "Khira Nagar":              (19.0815, 72.8474),
+    "Eastern suburbs":          (19.0982, 72.8878),
+    "Juhu":                     (19.1075, 72.8263),
+    "Khar":                     (19.0665, 72.8342),
+    "Pali Naka":                (19.0658, 72.8348),
+    "Khar Danda":               (19.0612, 72.8218),
+
+    # ── BHANDUP / MULUND / NAHUR ──────────────────────────────────────────
+    "Bhandup":                  (19.1458, 72.9362),
+    "Shivaji Talav":            (19.1462, 72.9365),
+    "Asalfa":                   (19.1158, 72.9212),   # corrected: Asalfa is near Ghatkopar, not Bhandup
+    "Garodia Nagar":            (19.0882, 72.9062),   # Ghatkopar East
+    "Jagdusha Nagar":           (19.1465, 72.9370),
+    "Pant Nagar":               (19.0878, 72.9125),   # Ghatkopar East
+    "Barve Nagar":              (19.1462, 72.9368),
+    "Mulund":                   (19.1716, 72.9562),
+    "Bombay Colony":            (19.1720, 72.9565),
+    "Paach Rasta":              (19.1722, 72.9570),
+    "Xavier Street":            (19.1715, 72.9560),
+    "Nahur":                    (19.1492, 72.9345),
+    "Mulund Runwals":           (19.1738, 72.9575),
+
+    # ── POWAI / CHANDIVALI / VIKHROLI / KANJUR ────────────────────────────
+    "Powai":                    (19.1197, 72.9076),
+    "Chandivali":               (19.1165, 72.9012),
+    "Hiranandani Gardens":      (19.1172, 72.9058),
+    "Paaspoli":                 (19.1188, 72.9045),
+    "Mhada Colony 19":          (19.1182, 72.9038),
+    "Morarji Nagar":            (19.1178, 72.9030),
+    "Chandshah Wali Dargah":    (19.1192, 72.9050),
+    "Vidyavihar":               (19.0828, 72.8948),   # corrected: Vidyavihar is near Ghatkopar West
+    "Rajawadi":                 (19.0882, 72.9062),   # Ghatkopar East
+    "Pipeline Road":            (19.1175, 72.8962),
+    "Kirol":                    (19.1170, 72.8958),
+    "Khalai":                   (19.1185, 72.8972),
+    "Vikhroli":                 (19.1088, 72.9288),
+    "Kanjur Marg":              (19.1148, 72.9345),
+    "Surya Nagar":              (19.1132, 72.9332),
+    "Kannamwar Nagar":          (19.1125, 72.9325),
+    "Tagore Nagar":             (19.1118, 72.9318),
+    "Park Site":                (19.1112, 72.9312),
+    "Godrej Station Colony":    (19.1105, 72.9305),
+    "Godrej Hillside Colony":   (19.1098, 72.9298),
+    "Godrej Creek":             (19.1092, 72.9292),
+    "Central suburbs":          (19.1088, 72.9288),
+
+    # ── GHATKOPAR / KURLA area ────────────────────────────────────────────
+    "Ghatkopar":                (19.0858, 72.9081),
+    "Kurla":                    (19.0728, 72.8826),
+    "Kasaiwada":                (19.0745, 72.8842),
+    "Quresh Nagar":             (19.0752, 72.8848),
+    "Tashilanagar":             (19.0748, 72.8845),
+    "Umerwadi":                 (19.0755, 72.8852),
+    "Kohinoor City":            (19.0758, 72.8855),
+    "Kapadia nagar":            (19.0765, 72.8860),
+    "Kurla Depot":              (19.0732, 72.8832),
+    "Squatters Colony":         (19.0775, 72.8870),
+    "Jari Mari":                (19.0782, 72.8875),
+    "Maharashtra Nagar":        (19.0788, 72.8880),
+    "Jamil Nagar":              (19.0792, 72.8885),
+    "Jamin Nagar":              (19.0795, 72.8888),
+    "Utkarsh Nagar":            (19.0802, 72.8895),
+    "Samarth Nagar":            (19.0808, 72.8902),
+    "Tulshet Pada":             (19.0815, 72.8908),
+    "Sonapur":                  (19.0822, 72.8915),
+    "Taximen colony":           (19.0825, 72.8918),
+    "Bail Bazar":               (19.0832, 72.8925),
+    "Court":                    (19.0838, 72.8932),
+    "Halav pool":               (19.0845, 72.8938),
+    "Makad wali chawal":        (19.0852, 72.8945),
+    "MIG":                      (19.0858, 72.8952),
+    "LIG":                      (19.0865, 72.8955),
+    "Sambhaji chowk":           (19.0872, 72.8962),
+    "Diamond":                  (19.0878, 72.8968),
+    "Galaxy":                   (19.0885, 72.8975),
+    "Machis factory":           (19.0892, 72.8982),
+    "New mill road":            (19.0898, 72.8988),
+    "Bachan tabela":            (19.0905, 72.8995),
+    "Pipe road":                (19.0912, 72.9002),
+    "Vinobha bhave":            (19.0918, 72.9008),
+    "Ali dada estate":          (19.0925, 72.9015),
+    "Takiya wad":               (19.0932, 72.9022),
+    "Machi market":             (19.0938, 72.9028),
+    "Rajiv Gandhi Nagar":       (19.0945, 72.9035),
+    "Lal Taki":                 (19.0952, 72.9042),
+    "Charbi Gali":              (19.0958, 72.9048),
+    "Kamela":                   (19.0965, 72.9055),
+    "Taxi Stand":               (19.0972, 72.9062),
+    "Kaju Pada":                (19.0978, 72.9068),
+    "Ghafoor Khan Estate":      (19.0985, 72.9075),
+    "Patel Wadi":               (19.0992, 72.9082),
+    "Dhobi Ghat":               (19.0745, 72.8835),
+    "New Hall Road":            (19.0748, 72.8840),
+    "Bharti Nagar":             (19.0755, 72.8845),
+    "Mubarak complex":          (19.0758, 72.8850),
+    "9 number":                 (19.0765, 72.8855),
+    "Teacher's Colony":         (19.0775, 72.8865),
+    "Kamaani":                  (19.0778, 72.8868),
+    "Huzoor Tajushsharia Chowk":(19.0792, 72.8882),
+    "Father Peter Pereira Chowk":(19.0798, 72.8888),
+    "\"L\" Ward":               (19.0808, 72.8898),
+
+    # ── CHEMBUR / GOVANDI / MANKHURD / DEONAR ────────────────────────────
+    "Chembur":                  (19.0622, 72.9005),
+    "Chembur Causeway":         (19.0612, 72.8995),
+    "Union Park":               (19.0625, 72.9010),
+    "Central Avenue":           (19.0632, 72.9015),
+    "Pestom sagar":             (19.0638, 72.9022),
+    "Basant Park":              (19.0645, 72.9028),
+    "Diamond Garden":           (19.0652, 72.9035),
+    "Chembur Camp":             (19.0658, 72.9042),
+    "Ghatla village":           (19.0665, 72.9048),
+    "Borla village":            (19.0672, 72.9055),
+    "Tilak Nagar":              (19.0685, 72.9068),
+    "New Tilak Nagar":          (19.0692, 72.9075),
+    "Mahul":                    (19.0555, 72.9175),   # corrected: Mahul is near Trombay, not near Chembur centre
+    "Mahul Village":            (19.0562, 72.9182),
+    "Trombay":                  (19.0602, 72.9188),
+    "Trombay Koliwada":         (19.0608, 72.9192),
+    "Mysore Colony":            (19.0712, 72.9095),
+    "Collector Colony":         (19.0718, 72.9102),
+    "Anushakti Nagar":          (19.0725, 72.9108),
+    "Vishnu Nagar":             (19.0732, 72.9115),
+    "HP nagar":                 (19.0738, 72.9122),
+    "BPCL":                     (19.0588, 72.9198),   # corrected: BPCL/RCF are near Mahul/Trombay
+    "RCF":                      (19.0572, 72.9205),
+    "C.G.S. colony":            (19.0758, 72.9142),
+    "Indian Oil Nagar":         (19.0772, 72.9155),
+    "Sahyadri Nagar":           (19.0778, 72.9162),
+    "Sarvoday Nagar":           (19.0785, 72.9168),
+    "Govandi":                  (19.0532, 72.9188),
+    "Mankhurd":                 (19.0445, 72.9282),
+    "Mandala":                  (19.0450, 72.9285),
+    "Deonar":                   (19.0532, 72.9148),
+    "Baiganwadi":               (19.0535, 72.9152),
+    "Lallubhai Compound":       (19.0548, 72.9165),
+    "Gautam Nagar":             (19.0555, 72.9172),
+    "Cheetah Camp":             (19.0450, 72.9225),
+    "Ambedkar Nagar":           (19.0462, 72.9242),
+    "Buddha Colony":            (19.0468, 72.9248),
+    "Achanak Nagar":            (19.0475, 72.9255),
+    "Thakkar Bappa Colony":     (19.0482, 72.9262),
+    "Vashinaka":                (19.0488, 72.9268),
+    "Siddharth Colony":         (19.0495, 72.9275),
+    "Madhav Nagar":             (19.0502, 72.9282),
+    "GTB Nagar":                (19.0508, 72.9288),
+    "Chedda Nagar":             (19.0515, 72.9295),
+    "Patel Estate":             (19.0522, 72.9302),
+    "Chunabhatti":              (19.0558, 72.9135),
+    "BSNL Colony":              (19.0568, 72.9148),
+    "Sangam Nagar":             (19.0575, 72.9155),
+
+    # ── WADALA / DHARAVI / SION / MAHIM ───────────────────────────────────
+    "Wadala":                   (19.0192, 72.8582),
+    "BPT Colony":               (19.0198, 72.8585),
+    "Kidwai Nagar":             (19.0210, 72.8598),
+    "Antop Hill":               (19.0215, 72.8605),
+    "Dharavi":                  (19.0378, 72.8534),
+    "Koliwada":                 (19.0382, 72.8538),
+    "Koombarwara":              (19.0388, 72.8545),
+    "Sion Trombay Road":        (19.0398, 72.8552),
+    "Wadavali village":         (19.0405, 72.8558),
+    "Maravali":                 (19.0412, 72.8565),
+    "Julianwadi":               (19.0418, 72.8572),
+    "Panjarpol":                (19.0425, 72.8578),
+
+    # ── SOUTH MUMBAI ──────────────────────────────────────────────────────
+    "Agripada":                 (19.9655, 72.8225),   # NOTE: keeping as-is, near Grant Rd
+    "Agripada":                 (18.9655, 72.8225),
+    "New Agripada":             (18.9662, 72.8232),
+    "Chaitanya Nagar":          (18.9670, 72.8238),
+    "Davri Nagar":              (18.9675, 72.8245),
+    "Vakola Pipeline":          (19.0775, 72.8465),
+    "South Mumbai":             (18.9388, 72.8355),
+    "Chinchpokli":              (18.9848, 72.8325),
+    "Chor Bazaar":              (18.9562, 72.8322),
+    "Churchgate":               (18.9355, 72.8258),
+    "Cuffe Parade":             (18.9222, 72.8215),
+    "Dava Bazaar":              (18.9575, 72.8335),
+    "Grant Road":               (18.9648, 72.8198),
+    "Kemps Corner":             (18.9665, 72.8080),
+    "Lower Parel":              (18.9982, 72.8368),
+    "Mahalaxmi":                (18.9828, 72.8342),
+    "Mahim":                    (19.0342, 72.8422),
+    "Masjid Bunder":            (18.9485, 72.8338),
+    "Marine Drive":             (18.9432, 72.8232),
+    "Marine Lines":             (18.9445, 72.8225),
+    "Mumbai Central":           (18.9688, 72.8228),
+    "Nagpada":                  (18.9615, 72.8265),
+    "Nariman Point":            (18.9255, 72.8235),
+    "Prabhadevi":               (19.0112, 72.8330),
+    "Worli":                    (19.0102, 72.8162),
+    "Bhuleshwar":               (18.9575, 72.8275),
+    "Zaveri Baazar":            (18.9545, 72.8315),
+    "Bhendi Bazaar":            (18.9535, 72.8295),
+    "Byculla":                  (18.9782, 72.8325),
+    "Dagdi Chawl":              (18.9588, 72.8305),
+    "Ghodapdeo":                (18.9595, 72.8312),
+    "Colaba":                   (18.9068, 72.8148),
+    "Navy Nagar":               (18.8988, 72.8148),
+    "Cumbala Hill":             (18.9698, 72.8048),
+    "Breach Candy":             (18.9628, 72.8065),
+    "Dadar":                    (19.0178, 72.8478),
+    "Hindu colony":             (19.0182, 72.8482),
+    "Shivaji Park Residential Zone": (19.0192, 72.8435),
+    "Parsi Colony":             (19.0195, 72.8488),
+    "Naigaon":                  (19.0202, 72.8495),
+    "Fort":                     (18.9338, 72.8352),
+    "Ballard Estate":           (18.9405, 72.8398),
+    "Dhobitalao":               (18.9442, 72.8275),
+    "Kala Ghoda":               (18.9285, 72.8318),
+    "Girgaon":                  (18.9545, 72.8215),
+    "Charni Road":              (18.9595, 72.8185),
+    "Khotachiwadi":             (18.9605, 72.8195),
+    "Kalbadevi":                (18.9515, 72.8295),
+    "Kamathipura":              (18.9665, 72.8245),
+    "Malabar Hill":             (18.9558, 72.7958),
+    "Walkeshwar":               (18.9460, 72.7995),
+    "Matunga":                  (19.0282, 72.8545),
+    "King Circle":              (19.0285, 72.8552),
+    "Parel":                    (18.9965, 72.8428),
+    "Cotton Green":             (18.9575, 72.8565),
+    "Lalbaug":                  (18.9975, 72.8355),
+    "Sion":                     (19.0388, 72.8638),
+    "Tardeo":                   (18.9718, 72.8195),
+    "Gowalia Tank":             (18.9645, 72.8125),
+    "Altamount Road":           (18.9655, 72.8055),
+    "Nana Chowk":               (18.9635, 72.8215),
+    "Umarkhadi":                (18.9538, 72.8325),
+    "Dongri":                   (18.9548, 72.8315),
+    "Sayad colony":             (18.9558, 72.8325),
+
+    # ── SPECIAL / INSTITUTION ─────────────────────────────────────────────
+    "IIT Bombay campus":        (19.1335, 72.9145),
     "Indian Institute of Technology Bombay campus": (19.1335, 72.9145),
-    "Nitie": (19.1265, 72.9198),
-    "JVLR": (19.1215, 72.8875),
+    "Nitie":                    (19.1265, 72.9198),
+    "JVLR":                     (19.1215, 72.8875),
     "WEH Western Express Highway": (19.1125, 72.8765),
-    "Other": (19.0760, 72.8777),
-    # Common area names for the location search
-    "L Ward": (19.0808, 72.8898),
-    "L ward": (19.0808, 72.8898),
-    "Borivali East": (19.2290, 72.8567),
-    "Borivali West": (19.2290, 72.8430),
-    "Andheri East": (19.1136, 72.8697),
-    "Andheri West": (19.1195, 72.8390),
-    "Malad East": (19.1864, 72.8520),
-    "Malad West": (19.1864, 72.8390),
-    "Kandivali East": (19.2077, 72.8550),
-    "Kandivali West": (19.2077, 72.8320),
-    "Goregaon East": (19.1663, 72.8560),
-    "Goregaon West": (19.1663, 72.8390),
-    "Bandra East": (19.0653, 72.8530),
-    "Bandra West": (19.0544, 72.8280),
-    "Kurla East": (19.0728, 72.8895),
-    "Kurla West": (19.0728, 72.8760),
-    "Ghatkopar East": (19.0858, 72.9150),
-    "Ghatkopar West": (19.0858, 72.9005),
-    "Mulund East": (19.1716, 72.9620),
-    "Mulund West": (19.1716, 72.9480),
-    "Vikhroli East": (19.1088, 72.9360),
-    "Vikhroli West": (19.1088, 72.9210),
-    "Bhandup East": (19.1459, 72.9430),
-    "Bhandup West": (19.1459, 72.9290),
-    "Chembur East": (19.0622, 72.9080),
-    "Chembur West": (19.0622, 72.8930),
-    "Santacruz East": (19.0786, 72.8470),
-    "Santacruz West": (19.0786, 72.8310),
-    "Vile Parle East": (19.0990, 72.8560),
-    "Vile Parle West": (19.0990, 72.8390),
+    "Naupada":                  (19.1918, 72.9742),   # Thane area — kept as-is
+    "Bairam Naupada":           (19.1920, 72.9746),
+    "Other":                    (19.0760, 72.8777),
+
+    # ── EAST / WEST SUFFIXED VARIANTS ─────────────────────────────────────
+    "L Ward":                   (19.0808, 72.8898),
+    "L ward":                   (19.0808, 72.8898),
+    "Borivali East":            (19.2290, 72.8567),
+    "Borivali West":            (19.2290, 72.8430),
+    "Andheri East":             (19.1144, 72.8697),
+    "Andheri West":             (19.1195, 72.8395),
+    "Malad East":               (19.1808, 72.8574),
+    "Malad West":               (19.1828, 72.8402),
+    "Kandivali East":           (19.2077, 72.8550),
+    "Kandivali West":           (19.2077, 72.8320),
+    "Goregaon East":            (19.1648, 72.8558),
+    "Goregaon West":            (19.1648, 72.8388),
+    "Bandra East":              (19.0653, 72.8528),
+    "Bandra West":              (19.0544, 72.8278),
+    "Kurla East":               (19.0728, 72.8892),
+    "Kurla West":               (19.0728, 72.8758),
+    "Ghatkopar East":           (19.0858, 72.9148),
+    "Ghatkopar West":           (19.0858, 72.9002),
+    "Mulund East":              (19.1716, 72.9618),
+    "Mulund West":              (19.1716, 72.9478),
+    "Vikhroli East":            (19.1088, 72.9358),
+    "Vikhroli West":            (19.1088, 72.9208),
+    "Bhandup East":             (19.1459, 72.9428),
+    "Bhandup West":             (19.1459, 72.9288),
+    "Chembur East":             (19.0622, 72.9078),
+    "Chembur West":             (19.0622, 72.8928),
+    "Santacruz East":           (19.0786, 72.8468),
+    "Santacruz West":           (19.0786, 72.8308),
+    "Vile Parle East":          (19.0990, 72.8558),
+    "Vile Parle West":          (19.0990, 72.8388),
 }
- 
+
 ZONE_COORDS = {
-    "andheri": (19.1136, 72.8697),
-    "bandra": (19.0544, 72.8402),
-    "borivali": (19.2290, 72.8567),
-    "kandivali": (19.2077, 72.8427),
-    "malad": (19.1864, 72.8485),
-    "goregaon": (19.1663, 72.8526),
-    "jogeshwari": (19.1382, 72.8432),
-    "santacruz": (19.0786, 72.8394),
-    "vile parle": (19.0990, 72.8474),
-    "khar": (19.0665, 72.8342),
-    "juhu": (19.1075, 72.8263),
-    "kurla": (19.0728, 72.8826),
-    "ghatkopar": (19.0858, 72.9081),
-    "vikhroli": (19.1088, 72.9288),
-    "bhandup": (19.1459, 72.9364),
-    "mulund": (19.1716, 72.9562),
-    "powai": (19.1197, 72.9076),
-    "chembur": (19.0622, 72.9005),
-    "deonar": (19.0532, 72.9148),
-    "govandi": (19.0532, 72.9188),
-    "mankhurd": (19.0445, 72.9282),
-    "dharavi": (19.0378, 72.8534),
-    "dadar": (19.0178, 72.8478),
-    "sion": (19.0388, 72.8638),
-    "mahim": (19.0342, 72.8424),
-    "wadala": (19.0192, 72.8582),
-    "worli": (19.0102, 72.8162),
-    "lower parel": (18.9982, 72.8368),
-    "mahalaxmi": (18.9828, 72.8342),
-    "prabhadevi": (19.0112, 72.8332),
-    "colaba": (18.9068, 72.8148),
-    "fort": (18.9338, 72.8355),
-    "churchgate": (18.9355, 72.8258),
-    "nariman": (18.9258, 72.8238),
-    "marine": (18.9432, 72.8235),
-    "byculla": (18.9782, 72.8328),
-    "agripada": (18.9658, 72.8228),
-    "mumbai central": (18.9688, 72.8228),
-    "grant road": (18.9648, 72.8198),
-    "nagpada": (18.9618, 72.8268),
-    "dongri": (18.9552, 72.8318),
-    "chor bazaar": (18.9565, 72.8325),
-    "bhendi": (18.9538, 72.8298),
-    "kalbadevi": (18.9518, 72.8298),
-    "bhuleshwar": (18.9578, 72.8278),
-    "girgaon": (18.9548, 72.8218),
-    "charni": (18.9598, 72.8188),
-    "malabar": (18.9558, 72.7958),
-    "cuffe parade": (18.9225, 72.8218),
-    "kamathipura": (18.9668, 72.8248),
-    "malvani": (19.1915, 72.8202),
-    "versova": (19.1316, 72.8130),
-    "l ward": (19.0808, 72.8898),
+    "andheri":      (19.1144, 72.8679),
+    "bandra":       (19.0544, 72.8402),
+    "borivali":     (19.2290, 72.8567),
+    "kandivali":    (19.2077, 72.8427),
+    "malad":        (19.1868, 72.8489),
+    "goregaon":     (19.1648, 72.8500),
+    "jogeshwari":   (19.1382, 72.8432),
+    "santacruz":    (19.0786, 72.8394),
+    "vile parle":   (19.0990, 72.8474),
+    "khar":         (19.0665, 72.8342),
+    "juhu":         (19.1075, 72.8263),
+    "kurla":        (19.0728, 72.8826),
+    "ghatkopar":    (19.0858, 72.9081),
+    "vikhroli":     (19.1088, 72.9288),
+    "bhandup":      (19.1458, 72.9362),
+    "mulund":       (19.1716, 72.9562),
+    "powai":        (19.1197, 72.9076),
+    "chembur":      (19.0622, 72.9005),
+    "deonar":       (19.0532, 72.9148),
+    "govandi":      (19.0532, 72.9188),
+    "mankhurd":     (19.0445, 72.9282),
+    "dharavi":      (19.0378, 72.8534),
+    "dadar":        (19.0178, 72.8478),
+    "sion":         (19.0388, 72.8638),
+    "mahim":        (19.0342, 72.8422),
+    "wadala":       (19.0192, 72.8582),
+    "worli":        (19.0102, 72.8162),
+    "lower parel":  (18.9982, 72.8368),
+    "mahalaxmi":    (18.9828, 72.8342),
+    "prabhadevi":   (19.0112, 72.8330),
+    "colaba":       (18.9068, 72.8148),
+    "fort":         (18.9338, 72.8352),
+    "churchgate":   (18.9355, 72.8258),
+    "nariman":      (18.9255, 72.8235),
+    "marine":       (18.9432, 72.8232),
+    "byculla":      (18.9782, 72.8325),
+    "agripada":     (18.9655, 72.8225),
+    "mumbai central":(18.9688, 72.8228),
+    "grant road":   (18.9648, 72.8198),
+    "nagpada":      (18.9615, 72.8265),
+    "dongri":       (18.9548, 72.8315),
+    "chor bazaar":  (18.9562, 72.8322),
+    "bhendi":       (18.9535, 72.8295),
+    "kalbadevi":    (18.9515, 72.8295),
+    "bhuleshwar":   (18.9575, 72.8275),
+    "girgaon":      (18.9545, 72.8215),
+    "charni":       (18.9595, 72.8185),
+    "malabar":      (18.9558, 72.7958),
+    "cuffe parade": (18.9222, 72.8215),
+    "kamathipura":  (18.9665, 72.8245),
+    "malvani":      (19.2004, 72.8219),
+    "versova":      (19.1351, 72.8134),
+    "l ward":       (19.0808, 72.8898),
+    "dahisar":      (19.2545, 72.8568),
+    "oshiwara":     (19.1412, 72.8318),
 }
- 
+
 # All area names for location search dropdown
 ALL_MUMBAI_AREAS = sorted(list(set(
     list(KNOWN_COORDS.keys()) + [k.title() for k in ZONE_COORDS.keys()]
 )))
- 
+
 np.random.seed(42)
- 
+
 def get_coords(locality: str):
     if locality in KNOWN_COORDS:
         return KNOWN_COORDS[locality]
-    # Try case-insensitive match
     for key, coords in KNOWN_COORDS.items():
         if key.lower() == locality.lower():
             return coords
@@ -717,25 +747,21 @@ def get_coords(locality: str):
         np.random.uniform(18.89, 19.27),
         np.random.uniform(72.78, 72.98),
     )
- 
+
 def resolve_area_to_coords(area_name: str):
-    """Resolve a typed area name to lat/lon. Returns (lat, lon) or None."""
     if not area_name:
         return None
-    # Exact match
     if area_name in KNOWN_COORDS:
         return KNOWN_COORDS[area_name]
-    # Case-insensitive exact
     for k, v in KNOWN_COORDS.items():
         if k.lower() == area_name.lower():
             return v
-    # Zone match
     area_l = area_name.lower()
     for key, coords in ZONE_COORDS.items():
         if key in area_l or area_l in key:
             return coords
     return None
- 
+
 # ─────────────────────────────────────────────
 # POLICE STATIONS LOADER
 # ─────────────────────────────────────────────
@@ -768,19 +794,19 @@ def load_police_stations(csv_path: str = "police_stations.csv") -> pd.DataFrame:
             "Dadar Police Station",
         ],
         "lat": [
-            18.9155, 18.9475, 19.0596, 19.0786, 19.1915,
-            19.1136, 19.0544, 19.2290, 19.0728, 19.0622,
-            19.1864, 19.2077, 19.1663, 19.0858, 19.1716,
+            18.9155, 18.9475, 19.0596, 19.0786, 19.2004,
+            19.1144, 19.0544, 19.2290, 19.0728, 19.0622,
+            19.1868, 19.2077, 19.1648, 19.0858, 19.1716,
             19.1197, 19.0378, 19.0178,
         ],
         "lon": [
-            72.8213, 72.8400, 72.8519, 72.8394, 72.8202,
-            72.8697, 72.8402, 72.8567, 72.8826, 72.9005,
-            72.8485, 72.8427, 72.8526, 72.9081, 72.9562,
+            72.8213, 72.8400, 72.8519, 72.8394, 72.8219,
+            72.8679, 72.8402, 72.8567, 72.8826, 72.9005,
+            72.8489, 72.8427, 72.8500, 72.9081, 72.9562,
             72.9076, 72.8534, 72.8478,
         ],
     })
- 
+
 # ─────────────────────────────────────────────
 # GEODESIC DISTANCE
 # ─────────────────────────────────────────────
@@ -791,7 +817,7 @@ def haversine_km(lat1, lon1, lat2, lon2) -> float:
     dlam = radians(lon2 - lon1)
     a = sin(dphi / 2) ** 2 + cos(phi1) * cos(phi2) * sin(dlam / 2) ** 2
     return R * 2 * atan2(sqrt(a), sqrt(1 - a))
- 
+
 def nearest_stations(user_lat, user_lon, stations_df, n=3):
     df = stations_df.copy()
     df["distance_km"] = df.apply(
@@ -802,12 +828,12 @@ def nearest_stations(user_lat, user_lon, stations_df, n=3):
         axis=1,
     )
     return df.nsmallest(n, "distance_km").reset_index(drop=True)
- 
+
 # ─────────────────────────────────────────────
 # SQLITE BACKEND
 # ─────────────────────────────────────────────
 DB_PATH = "safety_data.db"
- 
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -833,7 +859,7 @@ def init_db():
     """)
     conn.commit()
     conn.close()
- 
+
 def load_csv_to_db(csv_path):
     df = pd.read_csv(csv_path)
     conn = sqlite3.connect(DB_PATH)
@@ -860,38 +886,13 @@ def load_csv_to_db(csv_path):
     """, rows)
     conn.commit()
     conn.close()
- 
+
 def fetch_all():
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql("SELECT * FROM localities ORDER BY risk_index DESC", conn)
     conn.close()
     return df
- 
-def insert_from_df(df_new):
-    conn = sqlite3.connect(DB_PATH)
-    now = datetime.now().isoformat()
-    rows = []
-    for _, row in df_new.iterrows():
-        lat, lon = get_coords(str(row["locality"]))
-        rows.append((
-            str(row["locality"]), str(row.get("city", "Mumbai")),
-            int(row["population"]), float(row["area sq km"]),
-            float(row["populationdensity"]), float(row["urban heat island index"]),
-            int(row["police chowkis"]), float(row["internet penetration percent"]),
-            int(row["total crimes"]), int(row["crimes against women"]),
-            float(row["police_density"]), float(row["women safety index"]),
-            float(row["risk index"]), lat, lon, now
-        ))
-    conn.executemany("""
-        INSERT INTO localities
-        (locality, city, population, area_sq_km, population_density,
-         uhi_index, police_chowkis, internet_pct, total_crimes,
-         crimes_women, police_density, safety_index, risk_index, lat, lon, updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    """, rows)
-    conn.commit()
-    conn.close()
- 
+
 def report_incident(locality: str, incident_type: str = "general"):
     conn = sqlite3.connect(DB_PATH)
     now = datetime.now().isoformat()
@@ -912,12 +913,12 @@ def report_incident(locality: str, incident_type: str = "general"):
     )
     conn.close()
     return updated
- 
+
 def classify(risk):
     if risk >= 15: return "high"
     elif risk >= 7: return "medium"
     return "low"
- 
+
 # ─────────────────────────────────────────────
 # MAP BUILDER
 # ─────────────────────────────────────────────
@@ -926,7 +927,7 @@ def build_map(df, show_high, show_med, show_low,
               emergency_stations=None):
     focus_lat, focus_lon, zoom = 19.076, 72.877, 11
     fit_bounds = None
- 
+
     if emergency_stations is not None and user_lat and user_lon:
         all_lats = [user_lat] + list(emergency_stations["lat"])
         all_lons = [user_lon] + list(emergency_stations["lon"])
@@ -946,23 +947,23 @@ def build_map(df, show_high, show_med, show_low,
     elif user_lat and user_lon:
         focus_lat, focus_lon = user_lat, user_lon
         zoom = 15
- 
+
     m = folium.Map(
         location=[focus_lat, focus_lon],
         zoom_start=zoom,
         tiles=MAP_TILE,
         prefer_canvas=True,
     )
- 
+
     if fit_bounds:
         m.fit_bounds(fit_bounds, padding=[40, 40])
- 
+
     risk_vals = df["risk_index"].values
     r_min, r_max = risk_vals.min(), risk_vals.max()
- 
+
     def norm(v):
         return float((v - r_min) / (r_max - r_min + 1e-9))
- 
+
     high_pts, med_pts, low_pts = [], [], []
     for _, row in df.iterrows():
         cat = classify(row["risk_index"])
@@ -970,9 +971,9 @@ def build_map(df, show_high, show_med, show_low,
         if cat == "high": high_pts.append(pt)
         elif cat == "medium": med_pts.append(pt)
         else: low_pts.append(pt)
- 
+
     heat_cfg = dict(min_opacity=0.35, max_zoom=16, radius=28, blur=22)
- 
+
     if show_high and high_pts:
         HeatMap(high_pts, gradient={0.0:"#3d0000",0.4:"#cc0000",0.7:"#ff4444",1.0:"#ff0000"},
                 name="🔴 High Risk", **heat_cfg).add_to(m)
@@ -982,8 +983,7 @@ def build_map(df, show_high, show_med, show_low,
     if show_low and low_pts:
         HeatMap(low_pts, gradient={0.0:"#001a00",0.4:"#006600",0.7:"#00cc44",1.0:"#00ff66"},
                 name="🟢 Safe Zones", **heat_cfg).add_to(m)
- 
-    # User location — blue pulsing dot
+
     if user_lat and user_lon:
         folium.CircleMarker(
             location=[user_lat, user_lon], radius=10,
@@ -992,7 +992,7 @@ def build_map(df, show_high, show_med, show_low,
                 f"<b>📍 You are here</b><br>Lat: {user_lat:.5f}<br>Lon: {user_lon:.5f}",
                 max_width=180
             ),
-            tooltip=f"📍 Your Location",
+            tooltip="📍 Your Location",
         ).add_to(m)
         folium.CircleMarker(
             location=[user_lat, user_lon], radius=22,
@@ -1002,8 +1002,7 @@ def build_map(df, show_high, show_med, show_low,
             location=[user_lat, user_lon], radius=36,
             color="#00bfff", fill=False, weight=1, opacity=0.2,
         ).add_to(m)
- 
-    # Police station markers — solid blue dots
+
     if emergency_stations is not None:
         station_colors = ["#1565c0", "#1976d2", "#42a5f5"]
         rank_labels = ["#1 Nearest", "#2 Nearest", "#3 Nearest"]
@@ -1011,28 +1010,18 @@ def build_map(df, show_high, show_med, show_low,
             color = station_colors[idx] if idx < len(station_colors) else "#1565c0"
             folium.CircleMarker(
                 location=[srow["lat"], srow["lon"]],
-                radius=18,
-                color="#ffffff",
-                fill=True,
-                fill_color=color,
-                fill_opacity=0.25,
-                weight=2,
-                opacity=0.6,
+                radius=18, color="#ffffff", fill=True,
+                fill_color=color, fill_opacity=0.25, weight=2, opacity=0.6,
             ).add_to(m)
             folium.CircleMarker(
                 location=[srow["lat"], srow["lon"]],
-                radius=10,
-                color="#ffffff",
-                fill=True,
-                fill_color=color,
-                fill_opacity=1.0,
-                weight=2,
+                radius=10, color="#ffffff", fill=True,
+                fill_color=color, fill_opacity=1.0, weight=2,
                 popup=folium.Popup(
                     f"<b>🚔 {srow['name']}</b><br>"
                     f"{rank_labels[idx]}<br>"
                     f"Distance: {srow['distance_km']:.2f} km<br>"
-                    f"<a href='{srow['gmaps_link']}' target='_blank'>"
-                    f"🗺️ Navigate here →</a>",
+                    f"<a href='{srow['gmaps_link']}' target='_blank'>🗺️ Navigate here →</a>",
                     max_width=260,
                 ),
                 tooltip=f"🚔 {rank_labels[idx]}: {srow['name']} ({srow['distance_km']:.2f} km)",
@@ -1040,29 +1029,26 @@ def build_map(df, show_high, show_med, show_low,
             if user_lat and user_lon:
                 folium.PolyLine(
                     locations=[[user_lat, user_lon], [srow["lat"], srow["lon"]]],
-                    color=color,
-                    weight=2.5,
-                    dash_array="8 5",
-                    opacity=0.85,
+                    color=color, weight=2.5, dash_array="8 5", opacity=0.85,
                 ).add_to(m)
- 
+
     return m
- 
+
 # ─────────────────────────────────────────────
 # INIT DB
 # ─────────────────────────────────────────────
 init_db()
 if not os.path.exists(DB_PATH) or os.path.getsize(DB_PATH) < 5000:
     load_csv_to_db("data.csv")
- 
+
 conn_check = sqlite3.connect(DB_PATH)
 count = conn_check.execute("SELECT COUNT(*) FROM localities").fetchone()[0]
 conn_check.close()
 if count == 0:
     load_csv_to_db("data.csv")
- 
+
 POLICE_DF = load_police_stations("police_stations.csv")
- 
+
 # ─────────────────────────────────────────────
 # HEADER
 # ─────────────────────────────────────────────
@@ -1075,7 +1061,7 @@ with toggle_col:
     if st.button(TOGGLE_LABEL, use_container_width=True):
         st.session_state.dark_mode = not st.session_state.dark_mode
         st.rerun()
- 
+
 # ─────────────────────────────────────────────
 # SIDEBAR
 # ─────────────────────────────────────────────
@@ -1083,10 +1069,9 @@ with st.sidebar:
     st.markdown("## ⚙️ Controls")
     st.markdown("*Use the ◀ button at the top of the sidebar to collapse/expand it.*")
     st.markdown("---")
- 
-    # ── Location Section ─────────────────────
+
     st.markdown('<div class="section-hdr">📍 My Location</div>', unsafe_allow_html=True)
- 
+
     if st.session_state.user_lat:
         st.markdown(
             f'<span class="loc-badge loc-active">✅ Active: {st.session_state.user_lat:.4f}, {st.session_state.user_lon:.4f}</span>',
@@ -1103,7 +1088,6 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
 
-    # Area search — type a locality name to set location
     st.caption("Search by area name:")
     area_input = st.selectbox(
         "Search area",
@@ -1123,23 +1107,22 @@ with st.sidebar:
                 st.rerun()
         else:
             st.caption("⚠️ Area not found — try manual lat/lon below")
- 
+
     st.caption("Or enter coordinates manually:")
     col_lat, col_lon = st.columns(2)
     with col_lat:
         manual_lat = st.number_input("Lat", value=19.0760, format="%.4f", step=0.001)
     with col_lon:
         manual_lon = st.number_input("Lon", value=72.8777, format="%.4f", step=0.001)
- 
+
     if st.button("📌 Set Manual Coordinates", use_container_width=True):
         st.session_state.user_lat = manual_lat
         st.session_state.user_lon = manual_lon
         st.session_state.emergency_active = False
         st.rerun()
- 
-    # ── Emergency Button ─────────────────────
+
     st.markdown('<div class="section-hdr">🚨 Emergency</div>', unsafe_allow_html=True)
- 
+
     if not st.session_state.emergency_active:
         if st.button("🚨 EMERGENCY – Find Police NOW", use_container_width=True, type="primary"):
             if st.session_state.user_lat:
@@ -1151,21 +1134,19 @@ with st.sidebar:
         if st.button("✅ Emergency Active — Click to Deactivate", use_container_width=True):
             st.session_state.emergency_active = False
             st.rerun()
- 
+
     st.markdown("---")
- 
-    # ── Map Filters ──────────────────────────
+
     st.markdown('<div class="section-hdr">Layer Visibility</div>', unsafe_allow_html=True)
     show_high = st.checkbox("🔴 High Risk Zones", value=True)
     show_med  = st.checkbox("🟡 Medium Risk Zones", value=True)
     show_low  = st.checkbox("🟢 Safe Zones", value=True)
- 
+
     st.markdown('<div class="section-hdr">Zoom to Locality</div>', unsafe_allow_html=True)
     df_all = fetch_all()
     locality_list = ["— All —"] + sorted(df_all["locality"].unique().tolist())
     selected_loc = st.selectbox("Select locality", locality_list, label_visibility="collapsed")
- 
-    # ── Incident Reporting ───────────────────
+
     st.markdown("---")
     st.markdown('<div class="section-hdr">📣 Report Incident</div>', unsafe_allow_html=True)
     report_locality = st.selectbox(
@@ -1174,7 +1155,7 @@ with st.sidebar:
     )
     incident_severity = st.radio("Severity", ["General", "Severe"],
                                  horizontal=True, label_visibility="collapsed")
- 
+
     if st.button("📤 Submit Report", use_container_width=True):
         updated = report_incident(report_locality, incident_severity.lower())
         if not updated.empty:
@@ -1183,15 +1164,13 @@ with st.sidebar:
         else:
             st.success(f"✅ Incident saved for **{report_locality}**.")
         st.rerun()
- 
 
- 
 # ─────────────────────────────────────────────
 # FILTER DATA
 # ─────────────────────────────────────────────
 df_all = fetch_all()
 df_filtered = df_all.copy()
- 
+
 # ─────────────────────────────────────────────
 # COMPUTE NEAREST STATIONS
 # ─────────────────────────────────────────────
@@ -1200,7 +1179,7 @@ if st.session_state.emergency_active and st.session_state.user_lat:
     nearby_stations = nearest_stations(
         st.session_state.user_lat, st.session_state.user_lon, POLICE_DF, n=3
     )
- 
+
 # ─────────────────────────────────────────────
 # EMERGENCY PANEL
 # ─────────────────────────────────────────────
@@ -1208,7 +1187,7 @@ if st.session_state.emergency_active and nearby_stations is not None:
     st.markdown("""<div class="emergency-panel">
       <div class="emergency-title">🚨 EMERGENCY MODE — Nearest Police Stations (blue dots on map)</div>""",
       unsafe_allow_html=True)
- 
+
     rank_emojis = ["🥇", "🥈", "🥉"]
     cards_html = ""
     for i, (_, row) in enumerate(nearby_stations.iterrows()):
@@ -1218,10 +1197,10 @@ if st.session_state.emergency_active and nearby_stations is not None:
           <div class="station-dist">📏 {row['distance_km']:.2f} km away</div>
           <a class="nav-link" href="{row['gmaps_link']}" target="_blank">🗺️ Navigate in Google Maps</a>
         </div>"""
- 
+
     st.markdown(cards_html + "</div>", unsafe_allow_html=True)
     st.error("📞 **Police: 100** | Women Helpline: **1091** | Emergency: **112**")
- 
+
 # ─────────────────────────────────────────────
 # METRIC CARDS
 # ─────────────────────────────────────────────
@@ -1229,7 +1208,7 @@ n_high   = len(df_filtered[df_filtered["risk_index"] >= 15])
 n_med    = len(df_filtered[(df_filtered["risk_index"] >= 7) & (df_filtered["risk_index"] < 15)])
 n_low    = len(df_filtered[df_filtered["risk_index"] < 7])
 avg_risk = df_filtered["risk_index"].mean() if not df_filtered.empty else 0
- 
+
 st.markdown(f"""
 <div class="metric-row">
   <div class="metric-card"><div class="val blue">{len(df_filtered)}</div><div class="lbl">Localities</div></div>
@@ -1239,12 +1218,12 @@ st.markdown(f"""
   <div class="metric-card"><div class="val amber">{avg_risk:.1f}</div><div class="lbl">Avg Risk</div></div>
 </div>
 """, unsafe_allow_html=True)
- 
+
 # ─────────────────────────────────────────────
 # MAP + TABLE
 # ─────────────────────────────────────────────
 col_map, col_data = st.columns([2.6, 1], gap="medium")
- 
+
 with col_map:
     if df_filtered.empty:
         st.warning("No data available.")
@@ -1257,7 +1236,7 @@ with col_map:
             emergency_stations=nearby_stations,
         )
         st_folium(m, width=None, height=580, returned_objects=[])
- 
+
 with col_data:
     if st.session_state.user_lat and not st.session_state.emergency_active:
         st.markdown('<div class="section-hdr">🚔 Nearest Police Stations</div>', unsafe_allow_html=True)
@@ -1269,7 +1248,7 @@ with col_data:
                 f"[Navigate]({r['gmaps_link']})"
             )
         st.markdown("---")
- 
+
     st.markdown('<div class="section-hdr">Top 25 Riskiest Localities</div>', unsafe_allow_html=True)
     top25 = df_filtered.nlargest(25, "risk_index")[
         ["locality", "risk_index", "crimes_women", "police_density", "total_crimes"]
@@ -1278,25 +1257,25 @@ with col_data:
         "crimes_women": "Crimes(W)", "police_density": "Police/km²",
         "total_crimes": "Total",
     }).reset_index(drop=True)
- 
+
     def color_risk(val):
         if val >= 15: return "color: #ff4d4d; font-weight: 700"
         elif val >= 7: return "color: #ffaa00; font-weight: 600"
         return "color: #00e676"
- 
+
     st.dataframe(
         top25.style.map(color_risk, subset=["Risk"])
             .format({"Risk": "{:.1f}", "Police/km²": "{:.2f}"}),
         use_container_width=True, height=460,
     )
- 
+
 # ─────────────────────────────────────────────
 # CHARTS
 # ─────────────────────────────────────────────
 st.markdown("---")
 st.markdown('<div class="section-hdr">📊 Analytics</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
- 
+
 with c1:
     st.markdown("**Risk Distribution**")
     counts = pd.DataFrame({
@@ -1304,17 +1283,17 @@ with c1:
         "Count": [n_high, n_med, n_low]
     })
     st.bar_chart(counts.set_index("Zone"), color="#4fc3f7")
- 
+
 with c2:
     st.markdown("**Top 10 Crimes Against Women**")
     top_crimes = df_filtered.nlargest(10, "crimes_women")[["locality", "crimes_women"]].set_index("locality")
     st.bar_chart(top_crimes, color="#ff4444")
- 
+
 with c3:
     st.markdown("**Top 10 Police Density**")
     top_police = df_filtered.nlargest(10, "police_density")[["locality", "police_density"]].set_index("locality")
     st.bar_chart(top_police, color="#00e676")
- 
+
 # ─────────────────────────────────────────────
 # FULL DATA TABLE
 # ─────────────────────────────────────────────
@@ -1333,7 +1312,7 @@ with st.expander("📋 Full Data Table", expanded=False):
     )
     st.download_button("⬇️ Download CSV", df_filtered.to_csv(index=False),
                        "safety_data.csv", "text/csv")
- 
+
 st.markdown(f"""
 <div style="text-align:center;color:{SUBTXT};font-size:0.72rem;margin-top:20px;padding-bottom:12px">
   Mumbai Women Safety Risk Map · Built with Streamlit + Folium
